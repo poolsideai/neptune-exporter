@@ -25,6 +25,14 @@ except Exception:  # pragma: no cover - zenml and ZenMLLoader are optional
     ZenMLLoader = None  # type: ignore[misc,assignment]
     ZENML_AVAILABLE = False  # type: ignore[misc,assignment]
 
+try:
+    from .litlogger_loader import LitLoggerLoader, LITLOGGER_AVAILABLE
+except Exception:  # pragma: no cover - litlogger and LitLoggerLoader are optional
+    LitLoggerLoader = None  # type: ignore[misc,assignment]
+    LITLOGGER_AVAILABLE = False  # type: ignore[misc,assignment]
+
 __all__ = ["DataLoader", "MLflowLoader", "WandBLoader"]
+if LITLOGGER_AVAILABLE:
+    __all__.append("LitLoggerLoader")
 if ZENML_AVAILABLE:
     __all__.append("ZenMLLoader")

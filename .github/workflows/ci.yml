@@ -29,7 +29,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --extra zenml
+        uv sync --dev --extra zenml --extra litlogger
     
     - name: Run pre-commit
       run: |

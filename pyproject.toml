@@ -26,6 +26,10 @@ dev = [
 [project.optional-dependencies]
 zenml = ["zenml>=0.90.0,<1.0.0"]
 cometml = ["comet-ml>=3.55.0"]
+litlogger = [
+    "litlogger>=0.1.0,<0.2.0",
+    "matplotlib",
+]
 
 [project.scripts]
 neptune-exporter = "neptune_exporter.main:main"

@@ -27,6 +27,7 @@ from neptune_exporter.exporters.exporter import NeptuneExporter
 from neptune_exporter.exporters.neptune2 import Neptune2Exporter
 from neptune_exporter.exporters.neptune3 import Neptune3Exporter
 from neptune_exporter.loader_manager import LoaderManager
+from neptune_exporter.loaders.litlogger_loader import LitLoggerLoader
 from neptune_exporter.loaders.loader import DataLoader
 from neptune_exporter.loaders.mlflow_loader import MLflowLoader
 from neptune_exporter.loaders.wandb_loader import WandBLoader
@@ -360,7 +361,9 @@ def export(
 )
 @click.option(
     "--loader",
-    type=click.Choice(["mlflow", "wandb", "zenml", "comet"], case_sensitive=False),
+    type=click.Choice(
+        ["mlflow", "wandb", "litlogger", "zenml", "comet"], case_sensitive=False
+    ),
     help="Target platform loader to use.",
 )
 @click.option(
@@ -382,6 +385,18 @@ def export(
 @click.option(
     "--comet-api-key",
     help="Comet API key for authentication. Only used with --loader comet.",
+)
+@click.option(
+    "--litlogger-teamspace",
+    help="Lightning.ai teamspace name. Only used with --loader litlogger.",
+)
+@click.option(
+    "--litlogger-api-key",
+    help="Lightning.ai API key for authentication. Only used with --loader litlogger.",
+)
+@click.option(
+    "--litlogger-user-id",
+    help="Lightning.ai user ID for authentication. Only used with --loader litlogger.",
 )
 @click.option(
     "--name-prefix",
@@ -414,6 +429,9 @@ def load(
     mlflow_tracking_uri: str | None,
     wandb_entity: str | None,
     wandb_api_key: str | None,
+    litlogger_teamspace: str | None,
+    litlogger_api_key: str | None,
+    litlogger_user_id: str | None,
     name_prefix: str | None,
     verbose: bool,
     log_file: Path,
@@ -421,10 +439,10 @@ def load(
     comet_workspace: str | None,
     comet_api_key: str | None,
 ) -> None:
-    """Load exported Neptune data from parquet files to target platforms (MLflow, W&B, or Comet).
+    """Load exported Neptune data from parquet files to target platforms (MLflow, W&B, Comet, or LitLogger).
 
     This tool loads previously exported Neptune data from parquet files
-    and uploads it to MLflow, Weights & Biases, or Comet for further analysis and tracking.
+    and uploads it to MLflow, Weights & Biases, Comet or LitLogger for further analysis and tracking.
 
     The log file specified with --log-file will have a timestamp suffix
     automatically added (e.g., neptune_exporter_20250115_143022.log) to ensure
@@ -463,6 +481,18 @@ def load(
     \b
     # Load to Comet with API key
     neptune-exporter load --loader comet --comet-workspace "my-workspace" --comet-api-key "MY-COMET-API-KEY"
+
+    \b
+    # Load to LitLogger (Lightning.ai)
+    neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace
+
+    \b
+    # Load to LitLogger (Lightning.ai) with ID/Key authentication
+    neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace --litlogger-api-key xxx --litlogger-user-id YYY
+
+    \b
+    # Load to LitLogger (Lightning.ai) with prior login
+    lightning login && neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace
     """
     # Convert tuples to lists and handle None values
     project_ids_list = list(project_ids) if project_ids else None
@@ -498,6 +528,8 @@ def load(
         logger.info(f"  W&B entity: {wandb_entity}")
     if comet_workspace:
         logger.info(f"  Comet workspace: {comet_workspace}")
+    if litlogger_teamspace:
+        logger.info(f"  LitLogger teamspace: {litlogger_teamspace}")
     if name_prefix:
         logger.info(f"  Name prefix: {name_prefix}")
 
@@ -577,6 +609,24 @@ def load(
             show_client_logs=verbose,
         )
         loader_name = "Comet"
+    elif loader == "litlogger":
+        # Teamspace is optional for litlogger - uses default if not provided
+        if not litlogger_teamspace:
+            litlogger_teamspace = os.getenv("LITLOGGER_TEAMSPACE")
+        # API key is optional - uses default authentication if not provided
+        if not litlogger_api_key:
+            litlogger_api_key = os.getenv("LITLOGGER_API_KEY")
+        # User ID is optional
+        if not litlogger_user_id:
+            litlogger_user_id = os.getenv("LITLOGGER_USER_ID")
+        data_loader = LitLoggerLoader(
+            teamspace=litlogger_teamspace,
+            api_key=litlogger_api_key,
+            user_id=litlogger_user_id,
+            name_prefix=name_prefix,
+            show_client_logs=verbose,
+        )
+        loader_name = "LitLogger"
     else:
         raise click.BadParameter(f"Unknown loader: {loader}")
 

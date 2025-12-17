@@ -20,6 +20,7 @@ Neptune Exporter is a CLI tool to move Neptune experiments (version `2.x` or `3.
   - W&B entity and API key, set with `WANDB_ENTITY`/`--wandb-entity` and `WANDB_API_KEY`/`--wandb-api-key`.
   - ZenML server connection via `zenml login` (see [ZenML docs](https://docs.zenml.io/deploying-zenml/connecting-to-zenml/connect-in-with-your-user-interactive)).
   - Comet workspace and API key, set with `COMET_WORKSPACE`/`--comet-workspace` and `COMET_API_KEY`/`--comet-api-key`.
+  - Lightning AI LitLogger requires the teamspace name (`--litlogger-teamspace`) and the auth credentials (set via `lightning login` or `--litlogger-user-id` and `--litlogger-api-key`)
 
 ## Installation
 
@@ -127,6 +128,14 @@ uv run neptune-exporter export -p "workspace/proj" --exporter neptune2 --data-pa
     --comet-api-key "my-comet-api-key" \
     --data-path ./exports/data \
     --files-path ./exports/files
+
+  # LitLogger
+  uv run lightning login && \
+  uv run neptune-exporter load \
+    --loader litlogger \
+    --litlogger-teamspace "my-teamspace" \
+    --data-path ./exports/data \
+    --files-path ./exports/files
   ```
 
   > [!NOTE]
@@ -223,6 +232,7 @@ All records use `src/neptune_exporter/model.py::SCHEMA`:
   - W&B: logged as config with native types (string_set → list).
   - ZenML: logged as nested metadata with native types (datetime → ISO string, string_set → list); paths are split for dashboard cards.
   - Comet: logged as parameters with native types (string_set → list).
+  - LitLogger: logged as params to a tabular view
 - **Float series** (`float_series`):
   - MLflow/W&B/Comet: logged as metrics using the integer step (`--step-multiplier` applied). Timestamps are forwarded when present.
   - ZenML: aggregated into summary statistics (min/max/final/count) stored as metadata, since the Model Control Plane doesn't have native time-series visualization.
@@ -231,21 +241,25 @@ All records use `src/neptune_exporter/model.py::SCHEMA`:
   - W&B: logged as a Table with columns `step`, `value`, `timestamp`.
   - ZenML: not uploaded (skipped).
   - Comet: uploaded as text assets.
+  - LitLogger: uploaded as text assets.
 - **Histogram series** (`histogram_series`):
   - MLflow: uploaded as artifacts containing the histogram payload.
   - W&B: logged as `wandb.Histogram`.
   - ZenML: not uploaded (skipped).
   - Comet: logged as `histogram_3d`.
+  - LitLogger: uploaded as image containing a histogram plot and as artifacts containing the histogram payload
 - **Files** (`file`) and **file series** (`file_series`):
   - Downloaded to `--files-path/<sanitized_project_id>/...` with relative paths stored in `file_value.path`.
   - MLflow/W&B: uploaded as artifacts. File series include the step in the artifact name/path so steps remain distinguishable.
   - ZenML: uploaded via `save_artifact()` and linked to Model Versions.
   - Comet: uploaded as assets. Comet detects images and uploads them as images.
+  - LitLogger: uploaded as artifacts.
 - **Attribute names**:
   - MLflow: sanitized to allowed chars (alphanumeric + `_-. /`), truncated at 250 chars.
   - W&B: sanitized to allowed pattern (`^[_a-zA-Z][_a-zA-Z0-9]*$`); invalid chars become `_`, and names are forced to start with a letter or underscore.
   - ZenML: sanitized to allowed chars (alphanumeric + `_-. /` and spaces), max 250 chars; paths are split into nested metadata for dashboard card organization.
   - Comet: sanitized to allowed pattern (`^[_a-zA-Z][_a-zA-Z0-9]*$`); invalid chars become `_`, and names are forced to start with a letter or underscore.
+  - LitLogger: sanitized to allowed pattern (`^[a-zA-Z][a-zA-Z0-9]*$`); invalid chars become `-`, and names are forced to start with a letter.
 
 For details on Neptune attribute types, see the [documentation](https://docs.neptune.ai/attribute_types).
 
