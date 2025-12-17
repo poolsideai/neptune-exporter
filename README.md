@@ -128,6 +128,14 @@ uv run neptune-exporter export -p "workspace/proj" --exporter neptune2 --data-pa
     --comet-api-key "my-comet-api-key" \
     --data-path ./exports/data \
     --files-path ./exports/files
+
+  # LitLogger
+  uv run lightning login && \
+  uv run neptune-exporter load \
+    --loader litlogger \
+    --litlogger-teamspace "my-teamspace" \
+    --data-path ./exports/data \
+    --files-path ./exports/files
   ```
 
   > [!NOTE]
