@@ -20,4 +20,12 @@ from .litlogger_loader import LitLoggerLoader
 from .mlflow_loader import MLflowLoader
 from .wandb_loader import WandBLoader
 
+try:
+    from .zenml_loader import ZenMLLoader, ZENML_AVAILABLE
+except Exception:  # pragma: no cover - zenml and ZenMLLoader are optional
+    ZenMLLoader = None  # type: ignore[misc,assignment]
+    ZENML_AVAILABLE = False  # type: ignore[misc,assignment]
+
 __all__ = ["DataLoader", "LitLoggerLoader", "MLflowLoader", "WandBLoader"]
+if ZENML_AVAILABLE:
+    __all__.append("ZenMLLoader")
