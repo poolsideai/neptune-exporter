@@ -213,8 +213,8 @@ All records use `src/neptune_exporter/model.py::SCHEMA`:
   - Attribute names are sanitized to Comet format (alphanumeric + underscore, must start with letter/underscore). Metrics/series use the integer step. Files are uploaded as assets/images from `--files-path`. String series become text assets, histograms use `log_histogram_3d`.
 - **LitLogger loader**:
   - Requires `lightning login` for authentication (or `--litlogger-user-id` and `--litlogger-api-key`).
-  - Each Neptune `project_id` becomes a separate Lightning.ai **Teamspace** (created automatically if it doesn't exist). Teamspace names are sanitized (alphanumeric + hyphens/underscores, max 64 chars).
-  - Neptune runs become **Experiments** within their project's teamspace, named after the `run_id` (plus optional `--name-prefix`), max 64 chars.
+  - Each Neptune `project_id` becomes a separate Lightning.ai Teamspace (created automatically if it doesn't exist). Teamspace names are sanitized (alphanumeric + hyphens/underscores, max 64 chars).
+  - Neptune runs become Experiments within their project's teamspace, named after the `run_id` (plus optional `--name-prefix`), max 64 chars.
   - Parameters are stored as experiment metadata (searchable/filterable in the UI). Metrics use integer steps (`--step-multiplier` applied).
   - Files and artifacts are uploaded preserving directory structure. String series become `.txt` files, histograms become PNG images.
 - If a target run with the same name already exists in the experiment or project, the loader skips uploading that run to avoid duplicates.
@@ -237,8 +237,8 @@ All records use `src/neptune_exporter/model.py::SCHEMA`:
   - `sys/name` becomes the Comet experiment name.
   - Runs are created with their Neptune `run_id` (or `custom_run_id`) as the experiment name. Fork relationships are not supported by Comet.
 - **LitLogger:**
-  - Neptune `project_id` maps to a Lightning.ai **Teamspace** (created automatically if it doesn't exist, sanitized to max 64 chars).
-  - Neptune runs become **Experiments** within their project's teamspace, named after `run_id` (or `custom_run_id`, plus optional `--name-prefix`, max 64 chars).
+  - Neptune `project_id` maps to a Lightning.ai Teamspace (created automatically if it doesn't exist, sanitized to max 64 chars).
+  - Neptune runs become Experiments within their project's teamspace, named after `run_id` (or `custom_run_id`, plus optional `--name-prefix`, max 64 chars).
   - Neptune's `sys/name` is stored as metadata (`neptune_project` and `neptune_run`) for traceability. Fork relationships are not natively supported.
 
 ## Attribute/type mapping (detailed)
