@@ -387,8 +387,8 @@ def export(
     help="Comet API key for authentication. Only used with --loader comet.",
 )
 @click.option(
-    "--litlogger-teamspace",
-    help="Lightning.ai teamspace name. Only used with --loader litlogger.",
+    "--litlogger-owner",
+    help="Lightning.ai user or organization name. Only used with --loader litlogger.",
 )
 @click.option(
     "--litlogger-api-key",
@@ -429,7 +429,7 @@ def load(
     mlflow_tracking_uri: str | None,
     wandb_entity: str | None,
     wandb_api_key: str | None,
-    litlogger_teamspace: str | None,
+    litlogger_owner: str | None,
     litlogger_api_key: str | None,
     litlogger_user_id: str | None,
     name_prefix: str | None,
@@ -484,15 +484,15 @@ def load(
 
     \b
     # Load to LitLogger (Lightning.ai)
-    neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace
+    neptune-exporter load --loader litlogger --litlogger-owner my-user
 
     \b
     # Load to LitLogger (Lightning.ai) with ID/Key authentication
-    neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace --litlogger-api-key xxx --litlogger-user-id YYY
+    neptune-exporter load --loader litlogger --litlogger-owner my-org --litlogger-api-key xxx --litlogger-user-id YYY
 
     \b
     # Load to LitLogger (Lightning.ai) with prior login
-    lightning login && neptune-exporter load --loader litlogger --litlogger-teamspace my-teamspace
+    lightning login && neptune-exporter load --loader litlogger
     """
     # Convert tuples to lists and handle None values
     project_ids_list = list(project_ids) if project_ids else None
@@ -528,8 +528,8 @@ def load(
         logger.info(f"  W&B entity: {wandb_entity}")
     if comet_workspace:
         logger.info(f"  Comet workspace: {comet_workspace}")
-    if litlogger_teamspace:
-        logger.info(f"  LitLogger teamspace: {litlogger_teamspace}")
+    if litlogger_owner:
+        logger.info(f"  LitLogger owner: {litlogger_owner}")
     if name_prefix:
         logger.info(f"  Name prefix: {name_prefix}")
 
@@ -611,8 +611,8 @@ def load(
         loader_name = "Comet"
     elif loader == "litlogger":
         # Teamspace is optional for litlogger - uses default if not provided
-        if not litlogger_teamspace:
-            litlogger_teamspace = os.getenv("LITLOGGER_TEAMSPACE")
+        if not litlogger_owner:
+            litlogger_owner = os.getenv("LITLOGGER_OWNER")
         # API key is optional - uses default authentication if not provided
         if not litlogger_api_key:
             litlogger_api_key = os.getenv("LITLOGGER_API_KEY")
@@ -620,7 +620,7 @@ def load(
         if not litlogger_user_id:
             litlogger_user_id = os.getenv("LITLOGGER_USER_ID")
         data_loader = LitLoggerLoader(
-            teamspace=litlogger_teamspace,
+            owner=litlogger_owner,
             api_key=litlogger_api_key,
             user_id=litlogger_user_id,
             name_prefix=name_prefix,

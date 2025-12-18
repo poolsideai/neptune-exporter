@@ -19,7 +19,7 @@ import re
 import tempfile
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -29,10 +29,15 @@ from neptune_exporter.types import ProjectId, TargetExperimentId, TargetRunId
 
 try:
     import litlogger
+    from lightning_sdk import User, Organization, Teamspace
 
     LITLOGGER_AVAILABLE = True
 except ImportError:
     LITLOGGER_AVAILABLE = False
+    litlogger = None  # type: ignore
+    User = None  # type: ignore
+    Organization = None  # type: ignore
+    Teamspace = None  # type: ignore
 
 
 class LitLoggerLoader(DataLoader):
@@ -44,7 +49,8 @@ class LitLoggerLoader(DataLoader):
 
     Neptune Concept -> LitLogger Concept
     -----------------------------------
-    - Project/Run   -> Experiment (with unique name combining project + run)
+    - Project       -> Teamspace (each Neptune project becomes a separate teamspace)
+    - Run           -> Experiment (with just the run name, unique within teamspace)
     - Parameters    -> Metadata (stored as string key-value pairs)
     - Float Series  -> Metrics (logged with step information)
     - Files         -> Artifacts (uploaded with preserved directory structure)
@@ -52,7 +58,7 @@ class LitLoggerLoader(DataLoader):
     - Histograms    -> PNG images (rendered as bar charts)
 
     Usage:
-        loader = LitLoggerLoader(teamspace="my-teamspace")
+        loader = LitLoggerLoader()
         loader.create_run(project_id, run_name)
         loader.upload_run_data(data_generator, run_id, files_dir, step_multiplier)
 
@@ -63,7 +69,7 @@ class LitLoggerLoader(DataLoader):
 
     def __init__(
         self,
-        teamspace: Optional[str] = None,
+        owner: Optional[str] = None,
         api_key: Optional[str] = None,
         user_id: Optional[str] = None,
         name_prefix: Optional[str] = None,
@@ -73,8 +79,8 @@ class LitLoggerLoader(DataLoader):
         Initialize LitLogger loader.
 
         Args:
-            teamspace: Lightning.ai teamspace name where experiments will be created.
-                If not provided, uses the default teamspace for the authenticated user.
+            owner: Lightning.ai user or organization name where teamspaces and experiments will be created.
+                If not provided, uses the authenticated user.
             api_key: Optional API key for authentication to lightning.ai.
                 Can also be set via LIGHTNING_API_KEY environment variable.
             user_id: Optional user ID for authentication to lightning.ai.
@@ -92,7 +98,6 @@ class LitLoggerLoader(DataLoader):
             )
 
         # Configuration
-        self.teamspace = teamspace
         self.name_prefix = name_prefix
         self.show_client_logs = show_client_logs
 
@@ -114,6 +119,8 @@ class LitLoggerLoader(DataLoader):
             os.environ["LIGHTNING_API_KEY"] = api_key
         if user_id:
             os.environ["LIGHTNING_USER_ID"] = user_id
+
+        self.owner = self._validate_owner(owner_name=owner)
 
         # Cache for created experiment IDs (currently unused but reserved for future)
         self._experiments: Dict[str, TargetExperimentId] = {}
@@ -158,22 +165,21 @@ class LitLoggerLoader(DataLoader):
 
         return sanitized
 
-    def _get_experiment_name(self, project_id: str, run_name: str) -> str:
+    def _get_experiment_name(self, run_name: str, max_length: int = 64) -> str:
         """
-        Generate a unique LitLogger experiment name from Neptune identifiers.
+        Generate a LitLogger experiment name from Neptune run name.
 
-        Combines project ID and run name to create a globally unique experiment
-        name in LitLogger. Optionally prepends a user-defined prefix.
+        Since each Neptune project maps to a separate teamspace, the experiment
+        name only needs to contain the run name. Optionally prepends a user-defined prefix.
 
         Args:
-            project_id: Neptune project ID (e.g., "workspace/project-name")
             run_name: Neptune run name/ID (e.g., "RUN-123")
+            max_length: Maximum length for the experiment name (default 64)
 
         Returns:
-            Sanitized experiment name (e.g., "workspace_project_name_RUN_123")
+            Sanitized experiment name (e.g., "RUN_123"), truncated to max_length
         """
-        # Combine project and run name for unique experiment identification
-        name = f"{project_id}_{run_name}"
+        name = run_name
 
         # Prepend optional prefix (useful for organizing migration batches)
         if self.name_prefix:
@@ -181,6 +187,32 @@ class LitLoggerLoader(DataLoader):
 
         # Sanitize: keep only alphanumeric, hyphens, and underscores
         name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+
+        # Truncate to max length
+        if len(name) > max_length:
+            name = name[:max_length]
+
+        return name
+
+    def _get_teamspace_name(self, project_id: str, max_length: int = 64) -> str:
+        """
+        Generate a LitLogger teamspace name from Neptune project ID.
+
+        Each Neptune project maps to a separate Lightning.ai teamspace.
+
+        Args:
+            project_id: Neptune project ID (e.g., "workspace/project-name")
+            max_length: Maximum length for the teamspace name (default 64)
+
+        Returns:
+            Sanitized teamspace name (e.g., "workspace_project-name"), truncated to max_length
+        """
+        # Sanitize: keep only alphanumeric, hyphens, and underscores
+        name = re.sub(r"[^a-zA-Z0-9_-]", "_", project_id)
+
+        # Truncate to max length
+        if len(name) > max_length:
+            name = name[:max_length]
 
         return name
 
@@ -317,10 +349,13 @@ class LitLoggerLoader(DataLoader):
         we can extract parameters from the first data chunk and include them
         as experiment metadata.
 
+        Each Neptune project maps to a separate Lightning.ai teamspace, and the
+        run name becomes the experiment name within that teamspace.
+
         Args:
             project_id: Neptune project ID (e.g., "workspace/project")
             run_name: Name of the run (e.g., "RUN-123")
-            experiment_id: Optional experiment identifier (used in experiment name)
+            experiment_id: Optional experiment identifier (unused, kept for interface compatibility)
             parent_run_id: Optional parent run ID (logged as warning - not supported)
             fork_step: Optional fork step (not supported by LitLogger)
             step_multiplier: Optional step multiplier (not used for run creation)
@@ -328,11 +363,21 @@ class LitLoggerLoader(DataLoader):
         Returns:
             Run ID (experiment name) that will be used in LitLogger
         """
-        # Build experiment name from project, experiment, and run
-        if experiment_id:
-            experiment_name = self._get_experiment_name(experiment_id, run_name)
-        else:
-            experiment_name = self._get_experiment_name(project_id, run_name)
+        # Build experiment name from run_name only (project becomes teamspace)
+        experiment_name = self._get_experiment_name(run_name)
+
+        # Derive teamspace from project_id (each project gets its own teamspace)
+        teamspace_name = self._get_teamspace_name(project_id)
+
+        try:
+            teamspace = Teamspace(
+                name=teamspace_name,
+                user=self.owner if isinstance(self.owner, User) else None,
+                org=self.owner if isinstance(self.owner, Organization) else None,
+            )
+        except Exception:
+            self._logger.info(f"Teamspace {teamspace_name} not found, creating it")
+            teamspace = self.owner.create_teamspace(teamspace_name)
 
         # Warn about unsupported features
         if parent_run_id:
@@ -345,6 +390,7 @@ class LitLoggerLoader(DataLoader):
         # This allows us to extract parameters from data and use them as metadata
         self._pending_experiment = {
             "experiment_name": experiment_name,
+            "teamspace": teamspace,
             "project_id": project_id,
             "run_name": run_name,
         }
@@ -353,7 +399,7 @@ class LitLoggerLoader(DataLoader):
         self._current_run_id = run_id
 
         self._logger.info(
-            f"Prepared LitLogger experiment '{experiment_name}' for run '{run_name}'"
+            f"Prepared LitLogger experiment '{experiment_name}' in teamspace '{teamspace.name}' for run '{run_name}'"
         )
         return run_id
 
@@ -444,6 +490,9 @@ class LitLoggerLoader(DataLoader):
         parameter values (float, int, string, bool, datetime, string_set) from
         the data and stores them as experiment metadata.
 
+        Each Neptune project maps to a separate Lightning.ai teamspace, derived
+        from the project_id stored in the pending experiment.
+
         Args:
             run_df: First chunk of run data (pandas DataFrame)
 
@@ -462,10 +511,13 @@ class LitLoggerLoader(DataLoader):
         metadata["neptune_project"] = self._pending_experiment["project_id"]
         metadata["neptune_run"] = self._pending_experiment["run_name"]
 
+        # Use teamspace from project_id, or fallback to global teamspace if set
+        teamspace = self._pending_experiment.get("teamspace")
+
         # Initialize the LitLogger experiment
         self._active_experiment = litlogger.init(
             name=self._pending_experiment["experiment_name"],
-            teamspace=self.teamspace,
+            teamspace=teamspace,
             metadata=metadata,
             store_step=True,  # Enable step tracking for metrics
             store_created_at=True,  # Store timestamps
@@ -474,7 +526,7 @@ class LitLoggerLoader(DataLoader):
 
         self._logger.info(
             f"Created LitLogger experiment '{self._pending_experiment['experiment_name']}' "
-            f"with {len(metadata)} metadata fields"
+            f"in teamspace '{teamspace}' with {len(metadata)} metadata fields"
         )
 
     def _extract_parameters_as_metadata(self, run_df: pd.DataFrame) -> Dict[str, str]:
@@ -884,3 +936,19 @@ class LitLoggerLoader(DataLoader):
                         pass  # Ignore cleanup errors - temp dir will clean eventually
 
         self._logger.info(f"Uploaded artifacts for run {run_id}")
+
+    def _validate_owner(self, owner_name: Optional[str]) -> Union[User, Organization]:
+        from lightning_sdk.utils.resolve import _get_authed_user
+
+        authed_user = _get_authed_user()
+
+        if owner_name is None or authed_user.name == owner_name:
+            return authed_user
+
+        for org in authed_user.organizations:
+            if org.name == owner_name:
+                return org
+
+        raise ValueError(
+            f"Owner {owner_name} not found! Either it doesn't exist or the authenticated user is not a member of the organization"
+        )
