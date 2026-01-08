@@ -15,3 +15,5 @@ wheels/
 
 .env
 .neptune/
+wandb/
+exports/

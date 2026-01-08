@@ -143,7 +143,7 @@ def test_create_run_with_parent(mock_init):
     # Check fork_from parameter
     call_kwargs = mock_init.call_args[1]
     assert "fork_from" in call_kwargs
-    assert "wandb-run-parent" in call_kwargs["fork_from"]
+    assert call_kwargs["fork_from"] == "wandb-run-parent?_step=0"
 
 
 def test_upload_parameters():

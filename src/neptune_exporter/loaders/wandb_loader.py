@@ -196,8 +196,9 @@ class WandBLoader(DataLoader):
                 else:
                     step_int = 0
 
-                # W&B fork format: entity/project/run_id?_step=step
-                fork_from = f"{self.entity}/{sanitized_project}/{parent_run_id}?_step={step_int}"
+                # W&B fork format: run_id?_step=step
+                # https://docs.wandb.ai/models/runs/forking
+                fork_from = f"{parent_run_id}?_step={step_int}"
                 init_kwargs["fork_from"] = fork_from
                 self._logger.info(
                     f"Creating forked run '{run_name}' from parent {parent_run_id} at step {step_int}"
