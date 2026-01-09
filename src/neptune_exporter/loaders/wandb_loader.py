@@ -85,8 +85,8 @@ class WandBLoader(DataLoader):
     def _get_project_name(self, project_id: str) -> str:
         """Get W&B project name from Neptune project ID."""
         # W&B uses entity/project structure
-        # Neptune project_id maps directly to W&B project
-        name = project_id
+        assert "/" in project_id
+        _, name = project_id.split("/", maxsplit=1)
 
         if self.name_prefix:
             name = f"{self.name_prefix}_{name}"
