@@ -53,10 +53,10 @@ def test_sanitize_attribute_name():
     # Test normal name
     assert loader._sanitize_attribute_name("normal_name") == "normal_name"
 
-    # Test name with invalid characters (W&B only allows letters, numbers, underscores)
+    # Test name with invalid characters (W&B allows forward-slash "/")
     assert (
         loader._sanitize_attribute_name("invalid@name#with$chars/slashes")
-        == "invalid_name_with_chars_slashes"
+        == "invalid_name_with_chars/slashes"
     )
 
     # Test name starting with number (must start with letter or underscore)
@@ -176,12 +176,12 @@ def test_upload_parameters():
     mock_config.update.assert_called_once()
     config_dict = mock_config.update.call_args[0][0]
 
-    assert "test_param1" in config_dict
-    assert "test_param2" in config_dict
-    assert "test_param3" in config_dict
-    assert config_dict["test_param1"] == "test_value"
-    assert config_dict["test_param2"] == 3.14
-    assert config_dict["test_param3"] == 42
+    assert "test/param1" in config_dict
+    assert "test/param2" in config_dict
+    assert "test/param3" in config_dict
+    assert config_dict["test/param1"] == "test_value"
+    assert config_dict["test/param2"] == 3.14
+    assert config_dict["test/param3"] == 42
 
 
 def test_upload_parameters_string_set():
@@ -211,8 +211,8 @@ def test_upload_parameters_string_set():
     mock_config.update.assert_called_once()
     config_dict = mock_config.update.call_args[0][0]
 
-    assert "test_string_set" in config_dict
-    assert config_dict["test_string_set"] == ["value1", "value2", "value3"]
+    assert "test/string_set" in config_dict
+    assert config_dict["test/string_set"] == ["value1", "value2", "value3"]
 
 
 def test_upload_metrics():
@@ -359,7 +359,7 @@ def test_upload_artifacts_string_series():
 
         # Verify artifact was created and logged
         mock_artifact_class.assert_called_once_with(
-            name="test_string_series", type="string_series"
+            name="test/string_series", type="string_series"
         )
         mock_artifact.add_file.assert_called_once()
         mock_run.log_artifact.assert_called_once_with(mock_artifact)

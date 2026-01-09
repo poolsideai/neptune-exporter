@@ -66,11 +66,11 @@ class WandBLoader(DataLoader):
 
         W&B key constraints:
         - Must start with a letter or underscore
-        - Can only contain letters, numbers, and underscores
-        - Pattern: /^[_a-zA-Z][_a-zA-Z0-9]*$/
+        - Can only contain letters, numbers, underscores and select special characters such as / - %.
+        - Pattern: /^[_a-zA-Z][_/a-zA-Z0-9]*$/
         """
         # Replace invalid characters with underscores
-        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", attribute_path)
+        sanitized = re.sub(r"[^a-zA-Z0-9_/%-]", "_", attribute_path)
 
         # Ensure it starts with a letter or underscore
         if sanitized and not sanitized[0].isalpha() and sanitized[0] != "_":
