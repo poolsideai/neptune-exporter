@@ -51,12 +51,12 @@ def test_sanitize_attribute_name():
     loader = WandBLoader(entity="test-entity")
 
     # Test normal name
-    assert loader._sanitize_attribute_name("normal_name") == "normal_name"
+    assert loader._sanitize_attribute_name("normal_name/slashes-hyphens") == "normal_name/slashes-hyphens"
 
-    # Test name with invalid characters (W&B allows forward-slash "/")
+    # Test name with invalid characters
     assert (
-        loader._sanitize_attribute_name("invalid@name#with$chars/slashes")
-        == "invalid_name_with_chars/slashes"
+        loader._sanitize_attribute_name("invalid@name#with$chars")
+        == "invalid_name_with_chars"
     )
 
     # Test name starting with number (must start with letter or underscore)
