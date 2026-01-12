@@ -314,10 +314,13 @@ def export(
     logger.info(f"Data path: {data_path.absolute()}")
     logger.info(f"Files path: {files_path.absolute()}")
 
-    if min_modification_date is not None:
-        min_modification_date = datetime.strptime(min_modification_date, "%Y-%m-%d")
-    if max_modification_date is not None:
-        max_modification_date = datetime.strptime(max_modification_date, "%Y-%m-%d")
+    min_modification_time = datetime.strptime(min_modification_date, "%Y-%m-%d") if min_modification_date is not None else None
+    max_modification_time = datetime.strptime(max_modification_date, "%Y-%m-%d") if max_modification_date is not None else None
+
+    if min_modification_time:
+        logger.info(f"Minimum modification date filter: {min_modification_time.date()}")
+    if max_modification_time:
+        logger.info(f"Maximum modification date filter: {max_modification_time.date()}")
 
     try:
         runs_exported = export_manager.run(
@@ -325,8 +328,8 @@ def export(
             runs=runs,
             attributes=attributes_list,
             export_classes=export_classes_set,  # type: ignore
-            min_modification_time=min_modification_date,
-            max_modification_time=max_modification_date,
+            min_modification_time=min_modification_time,
+            max_modification_time=max_modification_time,
         )
 
         if runs_exported == 0:
