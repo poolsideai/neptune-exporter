@@ -325,8 +325,8 @@ def export(
             runs=runs,
             attributes=attributes_list,
             export_classes=export_classes_set,  # type: ignore
-            min_modification_date=min_modification_date,
-            max_modification_date=max_modification_date,
+            min_modification_time=min_modification_date,
+            max_modification_time=max_modification_date,
         )
 
         if runs_exported == 0:
