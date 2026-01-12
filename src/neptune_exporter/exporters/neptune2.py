@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import datetime
 from decimal import Decimal
 from typing import cast
 from neptune.attributes.attribute import Attribute
@@ -102,12 +103,14 @@ class Neptune2Exporter(NeptuneExporter):
         return cast(list[ProjectId], management.get_project_list())
 
     def list_runs(
-        self, project_id: ProjectId, runs: Optional[str] = None
+        self, project_id: ProjectId, runs: Optional[str] = None, min_modification_time: Optional[datetime.datetime] = None, max_modification_time: Optional[datetime.datetime] = None
     ) -> list[SourceRunId]:
         """
         List Neptune runs.
         The runs parameter is a regex pattern that the sys/custom_run_id must match.
         """
+        if min_modification_time or max_modification_time:
+            raise NotImplementedError("Filtering runs by modification time is not supported in Neptune2Exporter.")
         with neptune.init_project(
             api_token=self._api_token, project=project_id, mode="read-only"
         ) as project:

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import dataclasses
+import datetime
 from decimal import Decimal
 from neptune_query.exceptions import NeptuneError
 import pyarrow as pa
@@ -91,7 +92,7 @@ class Neptune3Exporter(NeptuneExporter):
         )
 
     def list_runs(
-        self, project_id: ProjectId, runs: Optional[str] = None
+        self, project_id: ProjectId, runs: Optional[str] = None, min_modification_time: Optional[datetime.datetime] = None, max_modification_time: Optional[datetime.datetime] = None
     ) -> list[SourceRunId]:
         """
         List Neptune runs.
@@ -108,6 +109,14 @@ class Neptune3Exporter(NeptuneExporter):
         if not self._include_archived_runs:
             runs_filter = runs_filter & filters.Filter.ne(
                 filters.Attribute("sys/archived", type="bool"), True
+            )
+        if min_modification_time is not None:
+            runs_filter = runs_filter & filters.Filter.ge(
+                "sys/modification_time", min_modification_time
+            )
+        if max_modification_time is not None:
+            runs_filter = runs_filter & filters.Filter.lt(
+                "sys/modification_time", max_modification_time
             )
         return nq_runs.list_runs(project=project_id, runs=runs_filter)
 

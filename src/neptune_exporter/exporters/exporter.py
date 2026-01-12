@@ -16,6 +16,7 @@
 """Core exporter abstract base class and types."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Generator, Optional, Sequence
 from pathlib import Path
 import pyarrow as pa
@@ -33,7 +34,7 @@ class NeptuneExporter(ABC):
 
     @abstractmethod
     def list_runs(
-        self, project_id: ProjectId, runs: Optional[str] = None
+        self, project_id: ProjectId, runs: Optional[str] = None, min_modification_time: Optional[datetime] = None, max_modification_time: Optional[datetime] = None
     ) -> list[SourceRunId]:
         """List Neptune runs."""
         pass
