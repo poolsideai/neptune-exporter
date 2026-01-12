@@ -133,6 +133,18 @@ def cli():
     is_flag=True,
     help="Disable progress bar.",
 )
+@click.option(
+    "--min-modification-date",
+    help="Filter runs with a modification date later than this given date. "
+    "Format: YYYY-MM-DD. Only runs modified after this date will be exported. "
+    "Can be combined with --max-modification-date to specify a date range.",
+)
+@click.option(
+    "--max-modification-date",
+    help="Filter runs with a modification date earlier than this given date. "
+    "Format: YYYY-MM-DD. Only runs modified before this date will be exported. "
+    "Can be combined with --min-modification-date to specify a date range.",
+)
 def export(
     project_ids: tuple[str, ...],
     runs: str | None,
@@ -148,6 +160,8 @@ def export(
     log_file: Path,
     error_report_file: Path,
     no_progress: bool,
+    min_modification_date: str | None = None,
+    max_modification_date: str | None = None,
 ) -> None:
     """Export Neptune experiment data to parquet files.
 
@@ -300,12 +314,19 @@ def export(
     logger.info(f"Data path: {data_path.absolute()}")
     logger.info(f"Files path: {files_path.absolute()}")
 
+    if min_modification_date is not None:
+        min_modification_date = datetime.strptime(min_modification_date, "%Y-%m-%d")
+    if max_modification_date is not None:
+        max_modification_date = datetime.strptime(max_modification_date, "%Y-%m-%d")
+
     try:
         runs_exported = export_manager.run(
             project_ids=[ProjectId(project_id) for project_id in project_ids_list],
             runs=runs,
             attributes=attributes_list,
             export_classes=export_classes_set,  # type: ignore
+            min_modification_date=min_modification_date,
+            max_modification_date=max_modification_date,
         )
 
         if runs_exported == 0:

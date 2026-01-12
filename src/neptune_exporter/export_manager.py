@@ -14,6 +14,7 @@
 # limitations under the License.
 
 
+from datetime import datetime
 import logging
 from typing import Iterable, Literal
 from pathlib import Path
@@ -56,6 +57,8 @@ class ExportManager:
         export_classes: Iterable[
             Literal["parameters", "metrics", "series", "files"]
         ] = {"parameters", "metrics", "series", "files"},
+        min_modification_time: datetime | None = None, 
+        max_modification_time: datetime | None = None,
     ) -> int:
         # Step 1: List all runs for all projects
         project_runs = {}
@@ -65,7 +68,7 @@ class ExportManager:
             unit="project",
             disable=not self._progress_bar,
         ):
-            run_ids = self._exporter.list_runs(project_id, runs)
+            run_ids = self._exporter.list_runs(project_id, runs, min_modification_time=min_modification_time, max_modification_time=max_modification_time)
             project_runs[project_id] = run_ids
 
         # Check if any runs were found
